@@ -25,7 +25,6 @@
 #define WAVEFORMGEN_VERSION "0.11"
 
 int width;
-int wfg_defaultOptions();
 bool wfg_generateImage(char* audioFileName, char* mp3FileName, int width);
 char* wfg_lastErrorMessage();
 int wfg_Seconds();

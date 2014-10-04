@@ -52,7 +52,7 @@ int main (int argc, char *argv[])
         return EXIT_FAILURE;
     }
     
-    width = wfg_defaultOptions();
+    width = 1800;
     
     // 	http://www.cs.utah.edu/dept/old/texinfo/glibc-manual-0.02/library_22.html#SEC388
     
@@ -73,7 +73,7 @@ int main (int argc, char *argv[])
                 mFile = optarg;
                 break;
             case 'w': // width
-                width = optarg;
+                width = atoi(optarg);
                 break;
         }
     }
@@ -98,9 +98,8 @@ int main (int argc, char *argv[])
     }
     bool ret;
     ret = wfg_generateImage(inFile, mFile, width);
-    if(!ret)
+    if(ret)
     {
-        fprintf(stderr, "ERROR: %s\n", wfg_lastErrorMessage());
         return EXIT_FAILURE;
     }
     
@@ -109,8 +108,6 @@ int main (int argc, char *argv[])
 
 void displayHelp()
 {
-    width = wfg_defaultOptions();
-    
     PRINT_VERSION;
     
     printf("usage: waveformgen [options] <infile> <outfile>\n\n\
@@ -118,9 +115,8 @@ void displayHelp()
            \n\
            OPTIONS:\n\
            -i file    specify input file\n\n\
-           -w dim     specify dimension as [width]. Default: %d\n\
-           -v         display version\n\n",
-           width 
+           -w dim     specify dimension as [width]. Default: 1800\n\
+           -v         display version\n\n"
            );
     
 }
