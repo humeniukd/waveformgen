@@ -115,7 +115,7 @@ static int open_output_file(const char *filename)
         if (dec_ctx->codec_type == AVMEDIA_TYPE_VIDEO
             || dec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
             /* in this example, we choose transcoding to same codec */
-            encoder = avcodec_find_encoder(dec_ctx->codec_id);
+            encoder = avcodec_find_encoder(AV_CODEC_ID_MP3);
             
             /* In this example, we transcode to same properties (picture size,
              * sample rate etc.). These properties can be changed for output
@@ -130,8 +130,8 @@ static int open_output_file(const char *filename)
                 enc_ctx->time_base = dec_ctx->time_base;
             } else {
                 enc_ctx->sample_rate = dec_ctx->sample_rate;
-                enc_ctx->channel_layout = dec_ctx->channel_layout;
-                enc_ctx->channels = av_get_channel_layout_nb_channels(enc_ctx->channel_layout);
+                enc_ctx->channel_layout = av_get_default_channel_layout(2);
+                enc_ctx->channels = 2;
                 /* take first format from list of supported formats */
                 enc_ctx->sample_fmt = encoder->sample_fmts[0];
                 enc_ctx->time_base = (AVRational){1, enc_ctx->sample_rate};
