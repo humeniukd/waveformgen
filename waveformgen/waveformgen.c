@@ -115,7 +115,7 @@ static int open_output_file(const char *filename)
         if (dec_ctx->codec_type == AVMEDIA_TYPE_VIDEO
             || dec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
             /* in this example, we choose transcoding to same codec */
-            encoder = avcodec_find_encoder(AV_CODEC_ID_MP3);
+            encoder = avcodec_find_encoder(ofmt_ctx->oformat->audio_codec);
             
             /* In this example, we transcode to same properties (picture size,
              * sample rate etc.). These properties can be changed for output
