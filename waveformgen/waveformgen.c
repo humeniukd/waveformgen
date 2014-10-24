@@ -392,10 +392,8 @@ int wfg_generateImage(char *infile, char *outfile, int width)
     int ret;
     AVPacket packet = { .data = NULL, .size = 0 };
     AVFrame *frame = NULL;
-    enum AVMediaType type;
     unsigned int i, samples;
     int got_frame;
-    int (*dec_func)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
     
     av_register_all();
     avfilter_register_all();
@@ -482,7 +480,7 @@ end:
     avcodec_close(ifmt_ctx->streams[stream_index]->codec);
     if (filter_ctx && filter_ctx->filter_graph)
         avfilter_graph_free(&filter_ctx->filter_graph);
-    avcodec_close(ofmt_ctx->streams[i]->codec);
+    avcodec_close(ofmt_ctx->streams[0]->codec);
     
     av_free(filter_ctx);
     avformat_close_input(&ifmt_ctx);
