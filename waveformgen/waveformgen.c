@@ -413,6 +413,7 @@ int wfg_generateImage(char *infile, char *outfile, int width)
     if ((ret = open_output_file(outfile)) < 0)
         goto end;
     duration = ifmt_ctx->duration/1000;
+    printf("%d\n", duration);
     sampleRate = ifmt_ctx->streams[stream_index]->codec->sample_rate;
     samples = ifmt_ctx->duration*sampleRate/AV_TIME_BASE;
     samplesPerLine = samples/width;
@@ -519,7 +520,7 @@ void log_callback(void* ptr, int level, const char* fmt, va_list vl)
     if (level == 49) {
         pthread_mutex_lock(&mutex);
         av_vbprintf (buffer, fmt, vl);
-        fprintf(stderr, "%s", buffer->str);
+        fprintf(stderr, "%s\n", buffer->str);
         pthread_mutex_unlock(&mutex);
     }
 }
