@@ -52,7 +52,8 @@ int main (int argc, char *argv[])
         return EXIT_FAILURE;
     }
     
-    width = 1800;
+    int width = 1800;
+    widthSmall = 800;
     
     // 	http://www.cs.utah.edu/dept/old/texinfo/glibc-manual-0.02/library_22.html#SEC388
     

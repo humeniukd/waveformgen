@@ -40,6 +40,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <time.h>
+#include "waveformgen.h"
 
 static AVFormatContext *ifmt_ctx;
 static AVFormatContext *ofmt_ctx;
@@ -394,7 +395,7 @@ AVBPrint *buffer;
 
 int wfg_generateImage(char *infile, char *outfile, int width)
 {
-    int ret, samplesPerLine, sampleRate, duration = 0;
+    int ret, samplesPerLine, samplesPerLineSmall, sampleRate, duration = 0;
     buffer = av_malloc(sizeof(AVBPrint));
     av_bprint_init(buffer, width*8+1, width*8+1);
     AVPacket packet = { .data = NULL, .size = 0 };
@@ -418,8 +419,9 @@ int wfg_generateImage(char *infile, char *outfile, int width)
     sampleRate = ifmt_ctx->streams[stream_index]->codec->sample_rate;
     samples = ifmt_ctx->duration*sampleRate/AV_TIME_BASE;
     samplesPerLine = samples/width;
-    char filter_descr[16];
-    sprintf(filter_descr, "wf=n=%d", samplesPerLine);
+    samplesPerLineSmall = samples/widthSmall;
+    char filter_descr[24];
+    sprintf(filter_descr, "wf=n=%d,wf=n=%d", samplesPerLineSmall, samplesPerLine);
     if ((ret = init_filters(filter_descr)) < 0)
         goto end;
     
@@ -524,6 +526,7 @@ void log_callback(void* ptr, int level, const char* fmt, va_list vl)
         av_vbprintf (buffer, fmt, vl);
         printf("%s\n", buffer->str);
         fflush(stdout);
+        av_bprint_init(buffer, widthSmall*8+1, widthSmall*8+1);
         pthread_mutex_unlock(&mutex);
     }
 }
