@@ -431,7 +431,7 @@ int wfg_generateImage(char *infile, char *outfile, int width)
     /* read all packets */
     while (1) {
         ts = time(NULL);
-        if((ts - oldTs) > 2) {
+        if((ts - oldTs) > 1) {
             oldTs = ts;
             printf("%ld\n", readedSamples*100/samples);
             fflush(stdout);
