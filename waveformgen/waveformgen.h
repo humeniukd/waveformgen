@@ -24,8 +24,8 @@
 
 #define WAVEFORMGEN_VERSION "0.11"
 
-int widthSmall;
-int wfg_generateImage(char *infile, char *outfile, int width);
+int width, widthSmall, height;
+int wfg_generateImage(char *infile, char *outfile);
 char* wfg_lastErrorMessage();
 int wfg_Seconds();
 

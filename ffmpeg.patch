@@ -1,0 +1,308 @@
+Index: libavfilter/af_wf.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- libavfilter/af_wf.c	(revision )
++++ libavfilter/af_wf.c	(revision )
+@@ -0,0 +1,254 @@
++/*
++ * Copyright (c) 2013 Dmitry Gumenyuk
++ * Copyright (c) 2012 Stefano Sabatini
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++/**
++ * @file
++ * Filter that changes number of samples on single output operation
++ */
++
++#include "libavutil/audio_fifo.h"
++#include "libavutil/avassert.h"
++#include "libavutil/channel_layout.h"
++#include "libavutil/opt.h"
++#include "avfilter.h"
++#include "audio.h"
++#include "internal.h"
++#include "formats.h"
++
++typedef struct {
++    const AVClass *class;
++    int nb_out_samples;  ///< how many samples to output
++    AVAudioFifo *fifo;   ///< samples are queued here
++    int64_t next_out_pts;
++    int width;
++    int height;
++	int l;
++	double *values;
++	double maxval;
++} AWFContext;
++
++#define OFFSET(x) offsetof(AWFContext, x)
++#define FLAGS AV_OPT_FLAG_AUDIO_PARAM|AV_OPT_FLAG_FILTERING_PARAM
++
++static const AVOption wf_options[] = {
++    { "n",              "set the number of per-frame output samples", OFFSET(nb_out_samples), AV_OPT_TYPE_INT, {.i64=1024}, 1, INT_MAX, FLAGS },
++    { "h", "height", OFFSET(height), AV_OPT_TYPE_INT, {.i64=140}, 0, INT_MAX, FLAGS },
++    { "w",   "width", OFFSET(width), AV_OPT_TYPE_INT, {.i64=1800}, 0, INT_MAX, FLAGS },
++    { NULL }
++};
++
++static double calcval(AVFrame* samples) {
++	double val = 0;
++	
++	int64_t layout  = samples->channel_layout;
++    int nb_samples  = samples->nb_samples;
++    int nb_channels = av_get_channel_layout_nb_channels(layout);
++    int nb_planes   = nb_channels;
++    int plane, i;
++    short *pcm;
++	float smpl = 0;
++	if (!av_sample_fmt_is_planar(samples->format)) {
++        nb_samples *= nb_channels;
++        nb_planes = 1;
++    }
++	for (plane = 0; plane < nb_planes; plane++) {
++		pcm = (short *)samples->extended_data[plane];
++		for (i = 0; i < nb_samples; i++)
++		{
++			smpl = pcm[i]/(float)32767;
++			if (smpl != 0.)
++			{
++				float db = 20*log10(fabs(smpl));
++				smpl = (db + 120) / 120;
++				if (smpl < 0.0)
++				{
++					smpl = 0.0;
++				}
++			}
++			val += smpl*smpl;
++		}
++	}
++	val /= (double) samples->nb_samples;
++	val = sqrt(val);
++	return val;
++}
++
++AVFILTER_DEFINE_CLASS(wf);
++
++static av_cold int init(AVFilterContext *ctx)
++{
++    AWFContext *awf = ctx->priv;
++	
++	awf->maxval = 0;
++	awf->l = 0;
++
++	awf->values = malloc(awf->width*sizeof(double));
++    awf->next_out_pts = AV_NOPTS_VALUE;
++
++    return 0;
++}
++
++static av_cold void uninit(AVFilterContext *ctx)
++{
++    double rmsSize;
++    int res = 0, width, height;
++    AWFContext *awf = ctx->priv;
++    width = awf->width;
++    height = awf->height;
++    char *result = av_malloc(width*4), *pos = result;
++    for(int i = 0; i < width; i++)
++    {
++        rmsSize = exp(M_E * (awf->values[i] * (double) (1/awf->maxval))-M_E);
++        res = height*rmsSize;
++        pos += sprintf(pos, "%d,", res);
++    }
++    result[strlen(result)-1] = 0;
++    av_log(ctx, 49, "%s" ,result);
++    av_audio_fifo_free(awf->fifo);
++}
++
++static int config_props_output(AVFilterLink *outlink)
++{
++    AWFContext *awf = outlink->src->priv;
++    int nb_channels = av_get_channel_layout_nb_channels(outlink->channel_layout);
++
++    awf->fifo = av_audio_fifo_alloc(outlink->format, nb_channels, awf->nb_out_samples);
++    if (!awf->fifo)
++        return AVERROR(ENOMEM);
++
++    return 0;
++}
++
++static int push_samples(AVFilterLink *outlink)
++{
++    AWFContext *awf = outlink->src->priv;
++    AVFrame *outsamples = NULL;
++    int ret, nb_out_samples, nb_pad_samples;
++    
++    nb_out_samples = av_audio_fifo_size(awf->fifo) ? awf->nb_out_samples : 0;
++    nb_pad_samples = nb_out_samples - FFMIN(nb_out_samples, av_audio_fifo_size(awf->fifo));
++    
++    if (!nb_out_samples)
++        return 0;
++    
++    outsamples = ff_get_audio_buffer(outlink, nb_out_samples);
++    if (!outsamples)
++        return AVERROR(ENOMEM);
++    
++    av_audio_fifo_read(awf->fifo,
++                       (void **)outsamples->extended_data, nb_out_samples);
++    
++    if (nb_pad_samples)
++        av_samples_set_silence(outsamples->extended_data, nb_out_samples - nb_pad_samples,
++                               nb_pad_samples, outlink->channels,
++                               outlink->format);
++    outsamples->nb_samples     = nb_out_samples;
++    outsamples->channel_layout = outlink->channel_layout;
++    outsamples->sample_rate    = outlink->sample_rate;
++    outsamples->pts = awf->next_out_pts;
++    
++    if (awf->l < awf->width) {
++        awf->values[awf->l] = calcval(outsamples);
++        awf->maxval = fmax(awf->maxval, awf->values[awf->l]);
++        awf->l++;
++    }
++    
++    if (awf->next_out_pts != AV_NOPTS_VALUE)
++        awf->next_out_pts += av_rescale_q(nb_out_samples, (AVRational){1, outlink->sample_rate}, outlink->time_base);
++    
++    ret = ff_filter_frame(outlink, outsamples);
++    if (ret < 0)
++        return ret;
++    return nb_out_samples;
++}
++
++static int filter_frame(AVFilterLink *inlink, AVFrame *insamples)
++{
++    AVFilterContext *ctx = inlink->dst;
++    AWFContext *awf = ctx->priv;
++    AVFilterLink *outlink = ctx->outputs[0];
++    int ret;
++    int nb_samples = insamples->nb_samples;
++
++    if (av_audio_fifo_space(awf->fifo) < nb_samples) {
++        av_log(ctx, AV_LOG_DEBUG, "No space for %d samples, stretching audio fifo\n", nb_samples);
++        ret = av_audio_fifo_realloc(awf->fifo, av_audio_fifo_size(awf->fifo) + nb_samples);
++        if (ret < 0) {
++            av_log(ctx, AV_LOG_ERROR,
++                   "Stretching audio fifo failed, discarded %d samples\n", nb_samples);
++            return -1;
++        }
++    }
++    av_audio_fifo_write(awf->fifo, (void **)insamples->extended_data, nb_samples);
++
++    if (awf->next_out_pts == AV_NOPTS_VALUE)
++        awf->next_out_pts = insamples->pts;
++    av_frame_free(&insamples);
++
++    while (av_audio_fifo_size(awf->fifo) >= awf->nb_out_samples)
++        push_samples(outlink);
++    return 0;
++}
++
++static int request_frame(AVFilterLink *outlink)
++{
++    AVFilterLink *inlink = outlink->src->inputs[0];
++    int ret;
++
++    ret = ff_request_frame(inlink);
++    if (ret == AVERROR_EOF) {
++        ret = push_samples(outlink);
++        return ret < 0 ? ret : ret > 0 ? 0 : AVERROR_EOF;
++    }
++
++    return ret;
++}
++
++static const AVFilterPad wf_inputs[] = {
++    {
++        .name           = "default",
++        .type           = AVMEDIA_TYPE_AUDIO,
++        .filter_frame   = filter_frame,
++        .needs_writable = 1,
++    },
++    {  NULL }
++};
++
++static const AVFilterPad wf_outputs[] = {
++    {
++        .name          = "default",
++        .type          = AVMEDIA_TYPE_AUDIO,
++        .request_frame = request_frame,
++        .config_props  = config_props_output,
++    },
++    { NULL }
++};
++
++AVFilter ff_af_wf = {
++    .name           = "wf",
++    .description    = NULL_IF_CONFIG_SMALL("Set the number of samples for each output audio frames."),
++    .priv_size      = sizeof(AWFContext),
++    .init           = init,
++    .uninit         = uninit,
++    .inputs         = wf_inputs,
++    .outputs        = wf_outputs,
++    .priv_class     = &wf_class,
++};
+Index: ffmpeg_conf
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ffmpeg_conf	(revision )
++++ ffmpeg_conf	(revision )
+@@ -0,0 +1,8 @@
++PREFIX="/usr/local"
++PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
++export PKG_CONFIG_PATH
++./configure --prefix="$PREFIX" \
++--extra-cflags="-I$PREFIX/include" --extra-ldflags="-L$PREFIX/lib" \
++--bindir="$PREFIX/bin" --extra-libs="-lmp3lame" --enable-gpl --enable-shared --enable-static \
++--enable-libmp3lame --enable-libvorbis \
++--enable-nonfree
+Index: libavfilter/allfilters.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- libavfilter/allfilters.c	(revision e01b19deceaafa2b7a9d59717484d8831b00cd71)
++++ libavfilter/allfilters.c	(revision )
+@@ -126,6 +126,7 @@
+     REGISTER_FILTER(VIBRATO,        vibrato,        af);
+     REGISTER_FILTER(VOLUME,         volume,         af);
+     REGISTER_FILTER(VOLUMEDETECT,   volumedetect,   af);
++    REGISTER_FILTER(WF,             wf,             af);
+ 
+     REGISTER_FILTER(AEVALSRC,       aevalsrc,       asrc);
+     REGISTER_FILTER(ANOISESRC,      anoisesrc,      asrc);
+Index: libavfilter/Makefile
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- libavfilter/Makefile	(revision e01b19deceaafa2b7a9d59717484d8831b00cd71)
++++ libavfilter/Makefile	(revision )
+@@ -108,6 +108,7 @@
+ OBJS-$(CONFIG_VOLUME_FILTER)                 += af_volume.o
+ OBJS-$(CONFIG_VOLUMEDETECT_FILTER)           += af_volumedetect.o
+ OBJS-$(CONFIG_HDCD_FILTER)                   += af_hdcd.o
++OBJS-$(CONFIG_WF_FILTER)                     += af_wf.o
+ 
+ OBJS-$(CONFIG_AEVALSRC_FILTER)               += aeval.o
+ OBJS-$(CONFIG_ANOISESRC_FILTER)              += asrc_anoisesrc.o

@@ -52,29 +52,36 @@ int main (int argc, char *argv[])
         return EXIT_FAILURE;
     }
     
-    int width = 1800;
+    width = 1800;
     widthSmall = 800;
+    height = 140;
     
     // 	http://www.cs.utah.edu/dept/old/texinfo/glibc-manual-0.02/library_22.html#SEC388
     
     int c;
     
-    while((c = getopt(argc, argv, "v:i:w:bm:")) != -1)
+    while((c = getopt(argc, argv, "h:i:w:W:o:")) != -1)
     {
         switch (c)
         {
-            case 'v': // version
-                PRINT_VERSION;
-                return EXIT_SUCCESS;
-                break;
             case 'i': // input
                 inFile = optarg;
                 break;
-            case 'm': // mp3
+            case 'o': // mp3
                 mFile = optarg;
                 break;
-            case 'w': // width
+            case 'W': // width
                 width = atoi(optarg);
+                break;
+            case 'w': // width
+                widthSmall = atoi(optarg);
+                break;
+            case 'h': // height
+                height = atoi(optarg);
+                break;
+            default: // version
+                PRINT_VERSION;
+                return EXIT_SUCCESS;
                 break;
         }
     }
@@ -98,7 +105,7 @@ int main (int argc, char *argv[])
         return EXIT_FAILURE;
     }
     bool ret;
-    ret = wfg_generateImage(inFile, mFile, width);
+    ret = wfg_generateImage(inFile, mFile);
     if(ret)
     {
         return EXIT_FAILURE;

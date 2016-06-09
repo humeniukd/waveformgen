@@ -393,9 +393,9 @@ void log_callback(void* ptr, int level, const char* fmt, va_list vl);
 
 AVBPrint *buffer;
 
-int wfg_generateImage(char *infile, char *outfile, int width)
+int wfg_generateImage(char *infile, char *outfile)
 {
-    int ret, samplesPerLine, samplesPerLineSmall, sampleRate, duration = 0;
+    int ret, samplesPerLine, samplesPerSmallLine, sampleRate, duration = 0;
     buffer = av_malloc(sizeof(AVBPrint));
     av_bprint_init(buffer, width*8+1, width*8+1);
     AVPacket packet = { .data = NULL, .size = 0 };
@@ -419,9 +419,10 @@ int wfg_generateImage(char *infile, char *outfile, int width)
     sampleRate = ifmt_ctx->streams[stream_index]->codec->sample_rate;
     samples = ifmt_ctx->duration*sampleRate/AV_TIME_BASE;
     samplesPerLine = samples/width;
-    samplesPerLineSmall = samples/widthSmall;
-    char filter_descr[24];
-    sprintf(filter_descr, "wf=n=%d,wf=n=%d", samplesPerLineSmall, samplesPerLine);
+    samplesPerSmallLine = samples/widthSmall;
+    char filter_descr[48];
+    sprintf(filter_descr, "wf=n=%d:w=%d:h=%d,wf=n=%d:w=%d:h=%d",
+            samplesPerSmallLine, widthSmall, height, samplesPerLine, width, height);
     if ((ret = init_filters(filter_descr)) < 0)
         goto end;
     
