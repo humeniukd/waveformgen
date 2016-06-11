@@ -417,7 +417,6 @@ int wfg_generateImage(char *infile, char *outfile)
     if ((ret = open_output_file(outfile)) < 0)
         goto end;
     duration = ifmt_ctx->duration/1000;
-    printf("%d\n", duration);
     fflush(stdout);
     sampleRate = ifmt_ctx->streams[stream_index]->codec->sample_rate;
     samples = ifmt_ctx->duration*sampleRate/AV_TIME_BASE;
@@ -502,6 +501,7 @@ int wfg_generateImage(char *infile, char *outfile)
     
     av_write_trailer(ofmt_ctx);
 end:
+    printf("%d\n", duration);
     av_free_packet(&packet);
     av_frame_free(&frame);
     
