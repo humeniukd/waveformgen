@@ -392,6 +392,7 @@ static int flush_encoder(unsigned int stream_index)
 void log_callback(void* ptr, int level, const char* fmt, va_list vl);
 
 AVBPrint *buffer;
+char jsonFileNameTmpl[28];
 
 int wfg_generateImage(char *infile, char *outfile)
 {
@@ -403,6 +404,8 @@ int wfg_generateImage(char *infile, char *outfile)
     long samples;
     long readedSamples = 0;
     int got_frame;
+    sprintf(jsonFileNameTmpl, "%s_%%s.json", infile);
+    
     av_log_set_callback(&log_callback);
     
     
@@ -520,14 +523,24 @@ end:
     return ret ? 1 : 0;
 }
 
+int flag = 1;
+
 void log_callback(void* ptr, int level, const char* fmt, va_list vl)
 {
     if (level == 49) {
         pthread_mutex_lock(&mutex);
         av_vbprintf (buffer, fmt, vl);
-        printf("%s\n", buffer->str);
-        fflush(stdout);
-        av_bprint_init(buffer, widthSmall*8+1, widthSmall*8+1);
+        FILE *jsonFile;
+        char jsonFileName[32];
+        sprintf(jsonFileName, jsonFileNameTmpl, flag ? "m" : "s");
+        jsonFile = fopen(jsonFileName, "w");
+        fprintf(jsonFile, "{\"width\":%d,\"height\":%d,\"samples\":[%s]}",
+                flag ? width : widthSmall, height, buffer->str);
+        fflush(jsonFile);
+        if(flag){
+            av_bprint_init(buffer, widthSmall*8+1, widthSmall*8+1);
+            flag = 0;
+        }
         pthread_mutex_unlock(&mutex);
     }
 }
