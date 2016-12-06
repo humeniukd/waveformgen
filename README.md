@@ -1,8 +1,13 @@
 git clone git://source.ffmpeg.org/ffmpeg.git ffmpeg
 patch -p0 -i ffmpeg.patch
 
+cd ffmpeg
+
 sh ./ffmpeg_conf #configure ffmpeg
-#build ffmpeg
+
+build and install ffmpeg
+
+make && make install
 
 cd ./waveformgen
 make
