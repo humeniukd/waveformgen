@@ -298,11 +298,11 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 --- libavfilter/Makefile	(revision e01b19deceaafa2b7a9d59717484d8831b00cd71)
 +++ libavfilter/Makefile	(revision )
-@@ -108,6 +108,7 @@
+@@ -111,6 +111,7 @@
+ OBJS-$(CONFIG_VIBRATO_FILTER)                += af_vibrato.o generate_wave_table.o
  OBJS-$(CONFIG_VOLUME_FILTER)                 += af_volume.o
  OBJS-$(CONFIG_VOLUMEDETECT_FILTER)           += af_volumedetect.o
- OBJS-$(CONFIG_HDCD_FILTER)                   += af_hdcd.o
 +OBJS-$(CONFIG_WF_FILTER)                     += af_wf.o
- 
+
  OBJS-$(CONFIG_AEVALSRC_FILTER)               += aeval.o
  OBJS-$(CONFIG_ANOISESRC_FILTER)              += asrc_anoisesrc.o
