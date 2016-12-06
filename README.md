@@ -9,6 +9,7 @@ sh ./ffmpeg_conf #configure ffmpeg
 make && make install #build and install ffmpeg
 
 cd ./waveformgen
+
 make
 
 command line:
