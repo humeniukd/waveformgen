@@ -1,13 +1,12 @@
 git clone git://source.ffmpeg.org/ffmpeg.git ffmpeg
-patch -p0 -i ffmpeg.patch
 
 cd ffmpeg
 
+patch -p0 -i ffmpeg.patch
+
 sh ./ffmpeg_conf #configure ffmpeg
 
-build and install ffmpeg
-
-make && make install
+make && make install #build and install ffmpeg
 
 cd ./waveformgen
 make
@@ -18,5 +17,4 @@ command line:
 
 -w dimension Default: 1800
 
-
-in action - http://loudyo.pp.ua/
+wf.py - example for using with AWS S3 and SQS
